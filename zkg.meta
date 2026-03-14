@@ -5,4 +5,4 @@ zeek_version = >=5.0.0
 description = Zero-training DNS tunnel detector. F1=1.000 vs Suricata ET Open F1=0.571.
 tags = dns, tunnel, detection, anomaly, exfiltration, zero-training
 script_dir = scripts
-test_command = python3 tests/test_ev_score.py
+test_command = python tests/test_ev_score.py
