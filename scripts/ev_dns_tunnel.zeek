@@ -13,6 +13,8 @@ export {
 global dns_labels:  table[addr] of table[string] of count &create_expire=5min;
 global dns_total:   table[addr] of count &create_expire=5min;
 global dns_alerted: set[addr] &create_expire=10min;
+global dns_len_sum:   table[addr] of double &create_expire=5min;
+global dns_len_sumsq: table[addr] of double &create_expire=5min;
 
 function process_query(c: connection, query: string)
     {
@@ -24,10 +26,12 @@ function process_query(c: connection, query: string)
     if ( |parts| == 0 ) return;
     local label = parts[0];
 
-    if ( src !in dns_total ) { dns_total[src]=0; dns_labels[src]=table(); }
+    if ( src !in dns_total ) { dns_total[src]=0; dns_labels[src]=table(); dns_len_sum[src]=0.0; dns_len_sumsq[src]=0.0; }
     dns_total[src] += 1;
     if ( label !in dns_labels[src] ) dns_labels[src][label] = 0;
     dns_labels[src][label] += 1;
+    dns_len_sum[src]   += |label|;
+    dns_len_sumsq[src] += |label| * |label|;
 
     local n = dns_total[src];
     if ( n < min_queries || n % min_queries != 0 ) return;
@@ -45,6 +49,16 @@ function process_query(c: connection, query: string)
         rule = fmt("beacon(top1=%.3f)", top1);
     else if ( ur > ur_threshold )
         rule = fmt("high_ur(ur=%.3f>%.3f)", ur, ur_threshold);
+
+    # Rule 3: DNS-shell — uniform label length (std < 1.5, ur 0.3-0.7)
+    if ( rule == "" && ur > 0.3 && ur < 0.7 )
+        {
+        local mean_len = dns_len_sum[src] / n;
+        local variance = dns_len_sumsq[src]/n - mean_len*mean_len;
+        local std_len  = sqrt(variance);
+        if ( std_len < 1.5 && mean_len > 7.0 )
+            rule = fmt("uniform_labels(len=%.1f,std=%.2f)", mean_len, std_len);
+        }
 
     if ( rule != "" )
         {
