@@ -53,7 +53,7 @@ All three rules adapt to your network — no configuration needed.
 ## Install
 
 ```bash
-zkg install zeek/adityatiwari/zeek-ev-dns-tunnel
+zkg install zeek/aditya01933/zeek-ev-dns-tunnel
 ```
 
 Requires: Python 3.8+, numpy, scipy
@@ -168,6 +168,6 @@ MIT
   author = {Tiwari, Aditya},
   title  = {zeek-ev-dns-tunnel: Zero-training DNS tunnel detection},
   year   = {2026},
-  url    = {https://github.com/adityatiwari/zeek-ev-dns-tunnel}
+  url    = {https://github.com/aditya01933/zeek-ev-dns-tunnel}
 }
 ```

@@ -1,5 +1,5 @@
 [package]
-url = https://github.com/adityatiwari/zeek-ev-dns-tunnel
+url = https://github.com/aditya01933/zeek-ev-dns-tunnel
 version = 1.0.0
 zeek_version = >=5.0.0
 description = Zero-training DNS tunnel detector. F1=1.000 vs Suricata ET Open F1=0.571.
