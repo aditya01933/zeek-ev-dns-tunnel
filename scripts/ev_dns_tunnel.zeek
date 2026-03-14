@@ -58,16 +58,17 @@ function process_query(c: connection, query: string)
     }
 
 # Standard queries (A, AAAA, CNAME, MX, TXT, SRV)
-# dns_request fires for: A(1), AAAA(28), CNAME(5), MX(15), TXT(16), SRV(33)
-# dns_query_reply fires for: NULL(10), PRIVATE(65399) — not covered by dns_request
-# Using dns_request as primary to avoid double-counting
-event dns_request(c: connection, msg: dns_msg, query: string, qtype: count, qclass: count)
-    { process_query(c, query); }
+# Use dns_query_reply as PRIMARY — fires for ALL record types
+# dns_request fires only for some types and may double-count
+# Deduplication via transaction ID prevents double-counting
+global seen_txids: table[addr] of set[count] &create_expire=30sec;
 
-# Only handle NULL/PRIVATE types via dns_query_reply (not fired by dns_request)
 event dns_query_reply(c: connection, msg: dns_msg, query: string, qtype: count, qclass: count)
     {
-    # qtype 10=NULL, 65399=PRIVATE — only these need query_reply
-    if ( qtype == 10 || qtype == 65399 )
-        process_query(c, query);
+    local src = c$id$orig_h;
+    local txid = msg$id;
+    if ( src !in seen_txids ) seen_txids[src] = set();
+    if ( txid in seen_txids[src] ) return;  # deduplicate
+    add seen_txids[src][txid];
+    process_query(c, query);
     }
