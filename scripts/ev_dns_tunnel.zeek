@@ -92,3 +92,13 @@ event dns_query_reply(c: connection, msg: dns_msg, query: string, qtype: count, 
     add seen_txids[src][txid];
     process_query(c, query);
     }
+
+# dns_request fires for A(1) records not caught by dns_query_reply
+event dns_request(c: connection, msg: dns_msg, query: string, qtype: count, qclass: count)
+    {
+    # Only handle types not covered by dns_query_reply to avoid double-counting
+    # TXT(16), CNAME(5), MX(15), SRV(33), NULL(10) fire both events
+    # A(1), AAAA(28), KEY(25) fire only dns_request
+    if ( qtype == 1 || qtype == 28 || qtype == 25 )
+        process_query(c, query);
+    }
