@@ -14,12 +14,10 @@ global dns_labels:  table[addr] of table[string] of count &create_expire=5min;
 global dns_total:   table[addr] of count &create_expire=5min;
 global dns_alerted: set[addr] &create_expire=10min;
 
-event dns_request(c: connection, msg: dns_msg, query: string, qtype: count, qclass: count)
+function process_query(c: connection, query: string)
     {
     if ( query == "" ) return;
     local src = c$id$orig_h;
-
-    # Skip already-alerted sources
     if ( src in dns_alerted ) return;
 
     local parts = split_string(query, /\./);
@@ -58,3 +56,11 @@ event dns_request(c: connection, msg: dns_msg, query: string, qtype: count, qcla
                 $suppress_for=10min]);
         }
     }
+
+# Standard queries (A, AAAA, CNAME, MX, TXT, SRV)
+event dns_request(c: connection, msg: dns_msg, query: string, qtype: count, qclass: count)
+    { process_query(c, query); }
+
+# NULL, PRIVATE and other record types Zeek parses as query_reply
+event dns_query_reply(c: connection, msg: dns_msg, query: string, qtype: count, qclass: count)
+    { process_query(c, query); }
