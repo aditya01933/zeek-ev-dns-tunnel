@@ -58,9 +58,16 @@ function process_query(c: connection, query: string)
     }
 
 # Standard queries (A, AAAA, CNAME, MX, TXT, SRV)
+# dns_request fires for: A(1), AAAA(28), CNAME(5), MX(15), TXT(16), SRV(33)
+# dns_query_reply fires for: NULL(10), PRIVATE(65399) — not covered by dns_request
+# Using dns_request as primary to avoid double-counting
 event dns_request(c: connection, msg: dns_msg, query: string, qtype: count, qclass: count)
     { process_query(c, query); }
 
-# NULL, PRIVATE and other record types Zeek parses as query_reply
+# Only handle NULL/PRIVATE types via dns_query_reply (not fired by dns_request)
 event dns_query_reply(c: connection, msg: dns_msg, query: string, qtype: count, qclass: count)
-    { process_query(c, query); }
+    {
+    # qtype 10=NULL, 65399=PRIVATE — only these need query_reply
+    if ( qtype == 10 || qtype == 65399 )
+        process_query(c, query);
+    }
