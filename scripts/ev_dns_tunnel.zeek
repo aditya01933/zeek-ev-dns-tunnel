@@ -1,5 +1,6 @@
 @load base/protocols/dns
 @load base/frameworks/notice
+@load policy/frameworks/notice/alarming
 
 module EvDNSTunnel;
 
@@ -11,15 +12,17 @@ export {
     const check_every:  count  = 50    &redef;
 }
 
+redef Notice::alarmed_types += { EvDNSTunnel::Tunnel_Detected };
+
 global dns_labels: table[addr] of table[string] of count &create_expire=5min;
 global dns_total:  table[addr] of count &create_expire=5min;
 
 function check_and_alert(src: addr, c: connection)
     {
-    local n   = dns_total[src];
+    local n = dns_total[src];
     if ( n < min_queries ) return;
 
-    local ur  = |dns_labels[src]| * 1.0 / n;
+    local ur   = |dns_labels[src]| * 1.0 / n;
     local top1 = 0.0;
     for ( lbl in dns_labels[src] )
         {
@@ -35,6 +38,7 @@ function check_and_alert(src: addr, c: connection)
 
     if ( rule != "" )
         {
+        print fmt("🚨 TUNNEL DETECTED: src=%s %s n=%d", src, rule, n);
         NOTICE([$note=Tunnel_Detected,
                 $msg=fmt("DNS tunnel: src=%s rule=%s n=%d ur=%.3f",
                          src, rule, n, ur),
@@ -49,7 +53,7 @@ function check_and_alert(src: addr, c: connection)
 event dns_request(c: connection, msg: dns_msg, query: string, qtype: count, qclass: count)
     {
     if ( query == "" ) return;
-    local src = c$id$orig_h;
+    local src   = c$id$orig_h;
     local parts = split_string(query, /\./);
     if ( |parts| == 0 ) return;
     local label = parts[0];
@@ -59,7 +63,6 @@ event dns_request(c: connection, msg: dns_msg, query: string, qtype: count, qcla
     if ( label !in dns_labels[src] ) dns_labels[src][label] = 0;
     dns_labels[src][label] += 1;
 
-    # Check every N queries
     if ( dns_total[src] % check_every == 0 )
         check_and_alert(src, c);
     }
